@@ -227,6 +227,17 @@ hr {
   .grid-cell:last-child {
     margin-right: 0; }
 
+.grid-wall {
+  width: 106.25px;
+  height: 106.25px;
+  margin-right: 15px;
+  float: left;
+  border-radius: 3px;
+  background: rgba(30, 30, 30, 0.75); }
+  .grid-cell:last-child {
+    margin-right: 0; }
+
+
 .tile-container {
   position: absolute;
   z-index: 2; }
@@ -646,7 +657,7 @@ hr {
   .tile.tile-position-3-2 {
     -webkit-transform: translate(135px, 67px);
     -moz-transform: translate(135px, 67px);
-    transform: translate(135px, 67px); }
+    transform: translate(135px, 17px); }
   .tile.tile-position-3-3 {
     -webkit-transform: translate(135px, 135px);
     -moz-transform: translate(135px, 135px);

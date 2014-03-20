@@ -33,14 +33,32 @@ GameManager.prototype.isGameTerminated = function () {
   }
 };
 
+
+function reverseSublists(nestedList){
+  var reversals = []
+  var nexlist;
+  nestedList.forEach(function (sublist){
+    nextlist = [];
+    reversals.push(nextlist);
+    for(var i = sublist.length - 1; i >= 0; i--){
+      nextlist.push(sublist[i]);
+    };
+  });
+  return reversals;
+}
+
 // Set up the game
 GameManager.prototype.setup = function () {
-  this.grid        = new Grid(this.size);
-
-  this.score       = 0;
-  this.over        = false;
-  this.won         = false;
-  this.keepPlaying = false;
+  this.grid               = new Grid(this.size);
+  this.columnOrder        = [[2, 3, 0], [0, 1, 2], [1, 2, 3], [3, 0, 1]];
+  this.rowOrder           = [[3, 0, 1], [1, 2, 3], [0, 1, 2], [2, 3, 0]];
+  this.reverseColumnOrder = reverseSublists(this.columnOrder);
+  //console.log(this.reverseColumnOrder);
+  this.reverseRowOrder    = reverseSublists(this.rowOrder);
+  this.score              = 0;
+  this.over               = false;
+  this.won                = false;
+  this.keepPlaying        = false;
 
   // Add the initial tiles
   this.addStartTiles();
@@ -54,6 +72,13 @@ GameManager.prototype.addStartTiles = function () {
   for (var i = 0; i < this.startTiles; i++) {
     this.addRandomTile();
   }
+  //this.grid.insertTile(new Tile({x: 2, y: 1}, 1));
+  //this.grid.insertTile(new Tile({x: 2, y: 3}, 2));
+
+  //this.grid.insertTile(new Tile({x: 3, y: 1}, 2));
+  //this.grid.insertTile(new Tile({x: 3, y: 3}, 2));
+
+
 };
 
 // Adds a tile in a random position
@@ -84,6 +109,7 @@ GameManager.prototype.actuate = function () {
 
 // Save all tile positions and remove merger info
 GameManager.prototype.prepareTiles = function () {
+  //console.log(this);
   this.grid.eachCell(function (x, y, tile) {
     if (tile) {
       tile.mergedFrom = null;
@@ -92,6 +118,7 @@ GameManager.prototype.prepareTiles = function () {
   });
 };
 
+
 // Move a tile and its representation
 GameManager.prototype.moveTile = function (tile, cell) {
   this.grid.cells[tile.x][tile.y] = null;
@@ -99,28 +126,87 @@ GameManager.prototype.moveTile = function (tile, cell) {
   tile.updatePosition(cell);
 };
 
+//GameManager.prototype.moveTile = function (tile, cell)
+GameManager.prototype.newColumnLayout = function (x, tiles, order, swapOrNot) {
+  var index = 0;
+  var self = this;
+  //console.log(tell, tell, tell);
+  tiles.forEach(function (tile){
+    //console.log(value, self.columnOrder);
+    var y = order[x][index];
+    self.moveTile(tile, swapOrNot(x, y));
+    //self.grid.cells[x][y] = new Tile({x: x, y: y}, value);
+    index++;
+  });
+};
+
 // Move tiles on the grid in the specified direction
 GameManager.prototype.move = function (direction) {
-  // 0: up, 1: right, 2:down, 3: left
   var self = this;
+  if (this.isGameTerminated()) return; // Don't do anything if the game's over  
+  var vector = this.getVector(direction);
+  var moved  = true;
+  self.prepareTiles();
+  var swapOrNot;
 
-  if (this.isGameTerminated()) return; // Don't do anything if the game's over
+  var order;
+  if (vector.y === 1){
+    order = self.reverseColumnOrder;
+    swapOrNot = function (x, y){return {x: x, y: y};};
+  } else if (vector.y === -1) {
+    order = self.columnOrder;
+    swapOrNot = function (x, y){return {x: x, y: y};};
+  } else if (vector.x === 1){
+    order = self.reverseRowOrder;
+    swapOrNot = function (x, y){return {y: x, x: y};};
+  } else if (vector.x === -1){
+    order = self.rowOrder;
+    swapOrNot = function (x, y){return {y: x, x: y};};
+  }
 
-  var cell, tile;
+  //think columns, if you want to think rows, swap xs and ys in your head.
+  for(var x = 0; x < 4; x++){
+    var tiles  = [];
+    var previous_tile = null;
 
-  var vector     = this.getVector(direction);
-  var traversals = this.buildTraversals(vector);
-  var moved      = false;
+    order[x].forEach(function(y){
+      tile = self.grid.cellContent(swapOrNot(x, y));
+      console.log(tile);
+      if(tile){
+        self.grid.removeTile(tile);
+        if (previous_tile !== null && previous_tile.value === tile.value){
+          tile.value *= 2;
+          tiles.pop();
+          //previous_tile.value *= 2;
+          //previous_tile = null
+        } else {
+          previous_tile = tile;
+        }
+        tiles.push(tile);
 
+      }
+    });
+    self.newColumnLayout(x, tiles, order, swapOrNot);  
+  }
+  
   // Save the current tile positions and remove merger information
-  this.prepareTiles();
 
   // Traverse the grid in the right direction and move tiles
-  traversals.x.forEach(function (x) {
-    traversals.y.forEach(function (y) {
-      cell = { x: x, y: y };
+  /*var xPos;
+  var step;
+  if (vector.x === 1){
+    xPos = 4;
+    step = -1;
+  } else {
+    xPos = -1;
+    step = 1;
+  }
+  traversals.forEach(function (innerList) {
+    xPos += step;
+    innerList.forEach(function (element) {
+      console.log(xPos, element);
+      cell = { x: xPos, y: element };
       tile = self.grid.cellContent(cell);
-
       if (tile) {
         var positions = self.findFarthestPosition(cell, vector);
         var next      = self.grid.cellContent(positions.next);
@@ -144,24 +230,22 @@ GameManager.prototype.move = function (direction) {
         } else {
           self.moveTile(tile, positions.farthest);
         }
-
         if (!self.positionsEqual(cell, tile)) {
           moved = true; // The tile moved from its original cell!
         }
       }
     });
-  });
+  });*/
 
   if (moved) {
     this.addRandomTile();
-
     if (!this.movesAvailable()) {
       this.over = true; // Game over!
     }
-
     this.actuate();
   }
 };
+
 
 // Get the vector representing the chosen direction
 GameManager.prototype.getVector = function (direction) {
@@ -174,22 +258,6 @@ GameManager.prototype.getVector = function (direction) {
   };
 
   return map[direction];
-};
-
-// Build a list of positions to traverse in the right order
-GameManager.prototype.buildTraversals = function (vector) {
-  var traversals = { x: [], y: [] };
-
-  for (var pos = 0; pos < this.size; pos++) {
-    traversals.x.push(pos);
-    traversals.y.push(pos);
-  }
-
-  // Always traverse from the farthest cell in the chosen direction
-  if (vector.x === 1) traversals.x = traversals.x.reverse();
-  if (vector.y === 1) traversals.y = traversals.y.reverse();
-
-  return traversals;
 };
 
 GameManager.prototype.findFarthestPosition = function (cell, vector) {

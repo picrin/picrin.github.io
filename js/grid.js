@@ -31,7 +31,9 @@ Grid.prototype.availableCells = function () {
 
   this.eachCell(function (x, y, tile) {
     if (!tile) {
-      cells.push({ x: x, y: y });
+      if(!(x == 2 && y == 0 || x == 0 && y == 1 || x == 1 && y == 3 || x == 3 && y == 2)){
+        cells.push({ x: x, y: y });
+      }
     }
   });
 
